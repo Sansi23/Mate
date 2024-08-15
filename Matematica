@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Cónicas</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            background-color: #f4f4f4;
+            margin: 0;
+        }
+        .form-container {
+            margin-bottom: 20px;
+        }
+        .form-container input {
+            margin: 5px;
+            padding: 10px;
+            font-size: 1em;
+            width: 100px;
+        }
+        .form-container button {
+            padding: 10px 20px;
+            font-size: 1em;
+            cursor: pointer;
+        }
+        .result, .valueN, .equation {
+            margin-top: 20px;
+            font-size: 1.2em;
+            color: #333;
+        }
+        #plot {
+            width: 100%;
+            max-width: 600px;
+            height: 400px;
+            margin-top: 20px;
+        }
+        .symbolab-link {
+            margin-top: 20px;
+            font-size: 1.2em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="form-container">
+            <h2>Calculadora de Cónicas</h2>
+            <input type="number" id="A" placeholder="A" step="any">
+            <input type="number" id="C" placeholder="C" step="any">
+            <input type="number" id="D" placeholder="D" step="any">
+            <input type="number" id="E" placeholder="E" step="any">
+            <input type="number" id="F" placeholder="F" step="any">
+            <button onclick="calculateConic()">Calcular</button>
+        </div>
+        <div id="equation" class="equation">Ecuación general: </div>
+        <div id="result" class="result">Tipo de cónica: </div>
+        <div id="valueN" class="valueN">Valor de N: </div>
+        <div id="plot"></div>
+        <div id="symbolabLink" class="symbolab-link"></div>
+    </div>
+
+    <script>
+        function formatNumber(number) {
+            return Number.isInteger(number) ? number : number.toFixed(2);
+        }
+
+        function calculateConic() {
+            const A = parseFloat(document.getElementById('A').value) || 0;
+            const C = parseFloat(document.getElementById('C').value) || 0;
+            const D = parseFloat(document.getElementById('D').value) || 0;
+            const E = parseFloat(document.getElementById('E').value) || 0;
+            const F = parseFloat(document.getElementById('F').value) || 0;
+
+            const N = (C * D * D) + (A * E * E) - 4 * (A * C * F);
+            const adjustedN = Math.abs(N) < 1e-10 ? 0 : N;
+
+            let type = '';
+            if (adjustedN > 0 && A !== C) {
+                type = 'Elipse';
+            } else if (A === C && A !== 0) {
+                type = 'Circunferencia';
+            } else if (adjustedN === 0) {
+                type = 'Punto';
+            } else {
+                type = 'Conjunto vacío';
+            }
+
+            document.getElementById('equation').textContent = `Ecuación general: ${formatNumber(A)}x² + ${formatNumber(C)}y² + ${formatNumber(D)}x + ${formatNumber(E)}y + ${formatNumber(F)} = 0`;
+            document.getElementById('result').textContent = `Tipo de cónica: ${type}`;
+            document.getElementById('valueN').textContent = `Valor de N: ${formatNumber(adjustedN)}`;
+
+            if (type === 'Elipse') {
+                plotEllipse(A, C, D, E, F);
+            } else if (type === 'Circunferencia') {
+                plotCircle(A, D, E, F);
+            } else if (type === 'Punto') {
+                const x = -D / (2 * A);
+                const y = -E / (2 * C);
+                document.getElementById('result').textContent += ` (Coordenadas del punto: (${formatNumber(x)}, ${formatNumber(y)}))`;
+                plotPoint(x, y);
+            } else {
+                document.getElementById('plot').innerHTML = '';
+            }
+
+            const equation = `${formatNumber(A)}x^2 + ${formatNumber(C)}y^2 + ${formatNumber(D)}x + ${formatNumber(E)}y + ${formatNumber(F)} = 0`;
+            const symbolabURL = `https://www.symbolab.com/solver/step-by-step/${encodeURIComponent(equation)}`;
+            document.getElementById('symbolabLink').innerHTML = `<a href="${symbolabURL}" target="_blank">Ver en Symbolab</a>`;
+        }
+
+        function plotPoint(x, y) {
+            const trace = {
+                x: [x],
+                y: [y],
+                mode: 'markers',
+                marker: {
+                    color: 'purple', // Color morado para el punto
+                    size: 10
+                },
+                text: [`(${formatNumber(x)}, ${formatNumber(y)})`],
+                hoverinfo: 'text',
+                name: 'Punto'
+            };
+
+            const layout = {
+                title: 'Gráfica del Punto',
+                xaxis: { title: 'X' },
+                yaxis: { title: 'Y', scaleanchor: 'x', scaleratio: 1 }
+            };
+
+            Plotly.newPlot('plot', [trace], layout);
+        }
+
+        function plotEllipse(A, C, D, E, F) {
+            const h = -D / (2 * A);
+            const k = -E / (2 * C);
+            const term = Math.sqrt((D * D / (4 * A * A)) + (E * E / (4 * C * C)) - (F / Math.min(A, C)));
+
+            const a = Math.sqrt(Math.abs((A * h * h) + (C * k * k) + D * h + E * k + F) / A);
+            const b = Math.sqrt(Math.abs((A * h * h) + (C * k * k) + D * h + E * k + F) / C);
+
+            const theta = Math.atan2(-D, 2 * A);
+
+            const x = [], y = [];
+            for (let i = 0; i <= 360; i += 1) {
+                const radians = (i * Math.PI) / 180;
+                const xVal = h + a * Math.cos(radians) * Math.cos(theta) - b * Math.sin(radians) * Math.sin(theta);
+                const yVal = k + a * Math.cos(radians) * Math.sin(theta) + b * Math.sin(radians) * Math.cos(theta);
+                x.push(xVal);
+                y.push(yVal);
+            }
+
+            const trace = {
+                x: x,
+                y: y,
+                mode: 'lines',
+                type: 'scatter',
+                name: 'Elipse'
+            };
+
+            const center = {
+                x: [h],
+                y: [k],
+                mode: 'markers',
+                marker: {
+                    color: 'red',
+                    size: 10
+                },
+                name: 'Centro'
+            };
+
+            const layout = {
+                title: 'Gráfica de la Elipse',
+                xaxis: { title: 'X' },
+                yaxis: { title: 'Y', scaleanchor: 'x', scaleratio: 1 },
+                shapes: [
+                    {
+                        type: 'line',
+                        x0: h - a,
+                        y0: k,
+                        x1: h + a,
+                        y1: k,
+                        line: {
+                            color: 'blue',
+                            width: 2
+                        },
+                        name: 'Eje Mayor'
+                    },
+                    {
+                        type: 'line',
+                        x0: h,
+                        y0: k - b,
+                        x1: h,
+                        y1: k + b,
+                        line: {
+                            color: 'green',
+                            width: 2
+                        },
+                        name: 'Eje Menor'
+                    }
+                ]
+            };
+
+            Plotly.newPlot('plot', [trace, center], layout);
+        }
+
+        function plotCircle(A, D, E, F) {
+            const h = -D / (2 * A);
+            const k = -E / (2 * A);
+            const r = Math.sqrt((D * D + E * E - 4 * A * F) / (4 * A * A));
+
+            const x = [];
+            const y = [];
+
+            for (let i = 0; i <= 360; i += 1) {
+                const radians = (i * Math.PI) / 180;
+                x.push(h + r * Math.cos(radians));
+                y.push(k + r * Math.sin(radians));
+            }
+
+            const trace = {
+                x: x,
+                y: y,
+                mode: 'lines',
+                type: 'scatter',
+                name: 'Circunferencia'
+            };
+
+            const center = {
+                x: [h],
+                y: [k],
+                mode: 'markers',
+                marker: {
+                    color: 'red',
+                    size: 10
+                },
+                name: 'Centro'
+            };
+
+            const radius = {
+                x: [h, h + r],
+                y: [k, k],
+                mode: 'lines+markers',
+                marker: {
+                    color: 'blue',
+                    size: 6
+                },
+                line: {
+                    color: 'blue',
+                    width: 2
+                },
+                name: `Radio: ${formatNumber(r)}`
+            };
+
+            const layout = {
+                title: 'Gráfica de la Circunferencia',
+                xaxis: { title: 'X' },
+                yaxis: { title: 'Y', scaleanchor: 'x', scaleratio: 1 }
+            };
+
+            Plotly.newPlot('plot', [trace, center, radius], layout);
+        }
+    </script>
+</body>
+</html>
